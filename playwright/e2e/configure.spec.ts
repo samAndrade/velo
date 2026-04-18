@@ -1,9 +1,5 @@
 import { test } from '../support/fixtures'
 
-/**
- * CT02 - Configuração do Veículo (Cores e Rodas) e Cálculo do Preço Base
- * Valida se as escolhas de cores e rodas ("Sport") refletem corretamente no preço final.
- */
 test.describe('Configuração do Veículo', () => {
   test.beforeEach(async ({ app }) => {
     await app.configure.open()
@@ -27,5 +23,25 @@ test.describe('Configuração do Veículo', () => {
     await app.configure.selectWheels(/Aero Wheels/)
     await app.configure.expectPrice('R$ 40.000,00')
     await app.configure.expectCarImage('/src/assets/glacier-blue-aero-wheels.png')
+  })
+
+  test('deve atualizar o preço ao selecionar opcionais e manter valores no checkout', async ({ app }) => {
+    await app.configure.expectPrice('R$ 40.000,00')
+    await app.configure.expectOptionalVisible('precisionPark')
+    await app.configure.expectOptionalVisible('fluxCapacitor')
+
+    await app.configure.checkOptional('precisionPark')
+    await app.configure.expectPrice('R$ 45.500,00')
+
+    await app.configure.checkOptional('fluxCapacitor')
+    await app.configure.expectPrice('R$ 50.500,00')
+
+    await app.configure.uncheckOptional('precisionPark')
+    await app.configure.uncheckOptional('fluxCapacitor')
+    await app.configure.expectPrice('R$ 40.000,00')
+
+    await app.configure.proceedToCheckout()
+    await app.configure.expectCheckoutPageLoaded()
+    await app.configure.expectCheckoutTotal('R$ 40.000,00')
   })
 })

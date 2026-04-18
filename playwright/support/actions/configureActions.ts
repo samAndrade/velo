@@ -1,7 +1,20 @@
 import { expect, Page } from '@playwright/test'
 
 export function createConfigureActions(page: Page) {
+  const precisionParkCheckbox = page.getByRole('checkbox', { name: /Precision Park/i })
+  const fluxCapacitorCheckbox = page.getByRole('checkbox', { name: /Flux Capacitor/i })
+  const checkoutButton = page.getByRole('button', { name: 'Monte o Seu' })
 
+  const optionalCheckboxes = {
+    precisionPark: precisionParkCheckbox,
+    fluxCapacitor: fluxCapacitorCheckbox,
+  } as const
+
+  type OptionalName = keyof typeof optionalCheckboxes
+
+  const getOptionalCheckbox = (name: OptionalName) => optionalCheckboxes[name]
+ 
+  
   return {
     async open() {
       await page.goto('/configure')
@@ -24,6 +37,34 @@ export function createConfigureActions(page: Page) {
     async expectCarImage(src: string) {
       const carImage = page.locator('img[alt^="Velô Sprint"]')
       await expect(carImage).toHaveAttribute('src', src)
+    },
+
+    async expectOptionalVisible(name: OptionalName) {
+      await expect(getOptionalCheckbox(name)).toBeVisible()
+    },
+
+    async checkOptional(name: OptionalName) {
+      await getOptionalCheckbox(name).check()
+    },
+
+    async uncheckOptional(name: OptionalName) {
+      await getOptionalCheckbox(name).uncheck()
+    },
+
+    async proceedToCheckout() {
+      await expect(checkoutButton).toBeEnabled()
+      await checkoutButton.click()
+    },
+
+    async expectCheckoutPageLoaded() {
+      await expect(page).toHaveURL('/order')
+      await expect(page.getByRole('heading', { name: 'Finalizar Pedido' })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Resumo' })).toBeVisible()
+      await expect(page.getByText('Total')).toBeVisible()
+    },
+
+    async expectCheckoutTotal(price: string) {
+      await expect(page.getByTestId('summary-total-price')).toHaveText(price)
     },
   }
 }
