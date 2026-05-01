@@ -9,13 +9,13 @@ test.describe('Consulta de Pedido', () => {
 
   test('deve consultar um pedido aprovado', async ({ app }) => {
     const order: OrderDetails = {
-      number: 'VLO-REA548',
+      number: 'VLO-VVZOF5',
       status: 'APROVADO',
-      color: 'Lunar White',
+      color: 'Glacier Blue',
       wheels: 'aero Wheels',
       customer: {
         name: 'Samir Andrade',
-        email: 'sam@velo.dev',
+        email: 'samir@velo.dev',
       },
       payment: 'À Vista',
     }
@@ -73,8 +73,8 @@ test.describe('Consulta de Pedido', () => {
     await app.orderLookup.validateOrderNotFound()
   })
 
-  test('deve manter o botão de busca desabilitado com campo vazio ou apenas espaços', async ({app, page}) => {
-    const button =app.orderLookup.elements.searchButton
+  test('deve manter o botão de busca desabilitado com campo vazio ou apenas espaços', async ({ app, page }) => {
+    const button = app.orderLookup.elements.searchButton
     await expect(button).toBeDisabled()
 
     await app.orderLookup.elements.orderInput.fill('     ')

@@ -39,10 +39,10 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on',  //'retain-on-failure', //'on-first-retry',
-    
+
     // Tempo máximo para ações interativas (click(), fill(), etc.)
     // Quando o valor é 0, herda o limite do timeout geral do teste
-    actionTimeout: 5_000, 
+    actionTimeout: 5_000,
 
     // Tempo máximo para navegaçõe4s como goto(), waitForURL(), etc.
     // Quando o valor é 0, herda o limite do timeout geral do teste
