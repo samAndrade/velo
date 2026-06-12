@@ -4,10 +4,22 @@ export function createCheckoutActions(page: Page) {
 
   const terms = page.getByTestId('checkout-terms')
 
+  const alerts = {
+    name: page.getByTestId('checkout-name-error'),
+    lastname: page.getByTestId('checkout-lastname-error'),
+    email: page.getByTestId('checkout-email-error'),
+    phone: page.getByTestId('checkout-phone-error'),
+    document: page.getByTestId('checkout-document-error'),
+    store: page.getByTestId('checkout-store-error'),
+    terms: page.getByTestId('checkout-terms-error')
+  }
+
+
   return {
 
     elements: {
-      terms
+      terms,
+      alerts,
     },
 
 
@@ -32,10 +44,10 @@ export function createCheckoutActions(page: Page) {
       document: string
     }) {
       await page.getByTestId('checkout-name').fill(data.name)
-      await page.getByTestId('checkout-surname').fill(data.lastname)
+      await page.getByTestId('checkout-lastname').fill(data.lastname)
       await page.getByTestId('checkout-email').fill(data.email)
       await page.getByTestId('checkout-phone').fill(data.phone)
-      await page.getByTestId('checkout-cpf').fill(data.document)
+      await page.getByTestId('checkout-document').fill(data.document)
     },
 
     async selectStore(storeName: string) {
