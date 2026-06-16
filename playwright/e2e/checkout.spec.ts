@@ -1,18 +1,17 @@
+import { deleteOrderByDocument } from '../support/database/orderRepository'
 import { test, expect } from '../support/fixtures'
 
 test.describe('Checkout', () => {
 
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/order')
-    await expect(page.getByRole('heading', { name: 'Finalizar Pedido' })).toBeVisible()
-  })
 
   test.describe('Validações de campos obrigatórios', () => {
 
-
     let alerts: any
 
-    test.beforeEach(async ({ app }) => {
+    test.beforeEach(async ({ page, app }) => {
+      await page.goto('/order')
+      await expect(page.getByRole('heading', { name: 'Finalizar Pedido' })).toBeVisible()
+
       alerts = app.checkout.elements.alerts
     })
 
@@ -117,6 +116,42 @@ test.describe('Checkout', () => {
 
       // Assert
       await expect(alerts.terms).toHaveText('Aceite os termos')
+    })
+
+  })
+
+  test.describe('Pagamento à Vista', () => {
+
+    test('deve finalizar pedido com sucesso para pagamento à vista', async ({ app, page }) => {
+      const customer = {
+        name: 'João',
+        lastname: 'Silva',
+        email: 'joao.silva@gmail.com',
+        document: '92349551024',
+        phone: '(11) 98888-8888',
+        store: 'Velô Paulista',
+        paymentMethod: 'À Vista',
+        totalPrice: 'R$ 40.000,00'
+      }
+
+      await deleteOrderByDocument(customer.document);
+
+      // Arrange
+      await page.goto('/')
+      await page.getByRole('link', { name: 'Configure Agora' }).click()
+      await app.configure.finishConfigurator()
+
+      await app.checkout.fillCustomerData(customer)
+      await app.checkout.selectStore(customer.store)
+      await app.checkout.acceptTerms()
+      await app.checkout.expectSummaryTotal(customer.totalPrice)
+
+      // Act
+      await app.checkout.submit()
+
+      // Assert
+      await expect(page.getByRole('heading', { name: 'Pedido Aprovado!' })).toBeVisible()
+      await expect(page.getByText('Seu pedido foi processado com sucesso. Em breve entraremos em contato.')).toBeVisible()
     })
 
   })
