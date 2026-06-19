@@ -61,6 +61,10 @@ export function createCheckoutActions(page: Page) {
 
     async submit() {
       await page.getByRole('button', { name: 'Confirmar Pedido' }).click()
+    },
+
+    async selectPaymentMethod(method: string) {
+      await page.getByRole('button', { name: new RegExp(method, 'i') }).click()
     }
   }
 }

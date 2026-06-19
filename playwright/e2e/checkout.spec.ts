@@ -120,7 +120,7 @@ test.describe('Checkout', () => {
 
   })
 
-  test.describe('Pagamento à Vista', () => {
+  test.describe('Pagamento e Confirmação', () => {
 
     test('deve finalizar pedido com sucesso para pagamento à vista', async ({ app, page }) => {
       const customer = {
@@ -152,6 +152,52 @@ test.describe('Checkout', () => {
       // Assert
       await expect(page.getByRole('heading', { name: 'Pedido Aprovado!' })).toBeVisible()
       await expect(page.getByText('Seu pedido foi processado com sucesso. Em breve entraremos em contato.')).toBeVisible()
+    })
+
+    test('deve aprovar automáticamente o crédito quando o score do CPF for maior que 700 no financiamento.', async ({ app, page }) => {
+      const customer = {
+        name: 'Steve',
+        lastname: 'Woz',
+        email: 'woz@velo.com',
+        document: '20517656000',
+        phone: '(11) 98888-8888',
+        store: 'Velô Paulista',
+        paymentMethod: 'Financiamento',
+        totalPrice: 'R$ 40.000,00'
+      }
+
+      await deleteOrderByDocument(customer.document);
+
+      await page.route('**/functions/v1/credit-analysis', async route => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            status: 'Done',
+            score: 710,
+          })
+        })
+      })
+
+      // Arrange
+      await page.goto('/')
+      await page.getByRole('link', { name: 'Configure Agora' }).click()
+      await app.configure.finishConfigurator()
+
+      await app.checkout.fillCustomerData(customer)
+      await app.checkout.selectStore(customer.store)
+      await app.checkout.expectSummaryTotal(customer.totalPrice)
+
+      await app.checkout.selectPaymentMethod(customer.paymentMethod)
+      //await app.checkout.expectSummaryTotal(customer.totalPrice)
+      await app.checkout.acceptTerms()
+
+      // Act
+      await app.checkout.submit()
+
+      // Assert
+      await expect(page.getByRole('heading', { name: 'Pedido Aprovado!' })).toBeVisible()
+      //await expect(page.getByText('Seu pedido foi processado com sucesso. Em breve entraremos em contato.')).toBeVisible()
     })
 
   })
