@@ -22,12 +22,6 @@ export function createCheckoutActions(page: Page) {
       alerts,
     },
 
-
-    async open() {
-      await page.goto('/order')
-      await expect(page.getByRole('heading', { name: 'Finalizar Pedido' })).toBeVisible()
-    },
-
     async expectLoaded() {
       await expect(page.getByRole('heading', { name: 'Finalizar Pedido' })).toBeVisible()
     },
@@ -53,6 +47,10 @@ export function createCheckoutActions(page: Page) {
     async selectStore(storeName: string) {
       await page.getByTestId('checkout-store').click()
       await page.getByRole('option', { name: storeName }).click()
+    },
+
+    async fillDownPayment(value: string) {
+      await page.getByTestId('input-entry-value').fill(value)
     },
 
     async acceptTerms() {
