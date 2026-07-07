@@ -1,5 +1,13 @@
 import { expect, Page } from '@playwright/test'
 
+export type OrderResultStatus = 'APROVADO' | 'EM_ANALISE' | 'REPROVADO'
+
+const resultHeadings: Record<OrderResultStatus, string> = {
+  APROVADO: 'Pedido Aprovado!',
+  EM_ANALISE: 'Pedido em Análise!',
+  REPROVADO: 'Pedido Reprovado',
+}
+
 export function createCheckoutActions(page: Page) {
 
   const terms = page.getByTestId('checkout-terms')
@@ -28,6 +36,11 @@ export function createCheckoutActions(page: Page) {
 
     async expectSummaryTotal(price: string) {
       await expect(page.getByTestId('summary-total-price')).toHaveText(price)
+    },
+
+    async expectOrderStatus(status: OrderResultStatus) {
+      await expect(page).toHaveURL('/success')
+      await expect(page.getByTestId('success-status')).toHaveText(resultHeadings[status])
     },
 
     async fillCustomerData(data: {
