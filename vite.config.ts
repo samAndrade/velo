@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
@@ -9,5 +9,10 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  test: {
+    environment: "node",
+    include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
+    exclude: ["playwright/**", "node_modules/**", "dist/**"],
   },
 });
