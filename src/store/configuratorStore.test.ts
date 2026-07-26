@@ -3,7 +3,8 @@ import {
   calculateTotalPrice,
   calculateInstallment,
   formatPrice,
-  CarConfiguration
+  CarConfiguration,
+  useConfiguratorStore
 } from './configuratorStore';
 
 describe('configuratorStore pure functions', () => {
@@ -15,7 +16,7 @@ describe('configuratorStore pure functions', () => {
         wheelType: 'aero',
         optionals: []
       };
-      
+
       // Base price is 40000
       expect(calculateTotalPrice(config)).toBe(40000);
     });
@@ -27,7 +28,7 @@ describe('configuratorStore pure functions', () => {
         wheelType: 'sport',
         optionals: []
       };
-      
+
       // Base price 40000 + 2000 sport wheels
       expect(calculateTotalPrice(config)).toBe(42000);
     });
@@ -39,7 +40,7 @@ describe('configuratorStore pure functions', () => {
         wheelType: 'aero',
         optionals: ['precision-park', 'flux-capacitor']
       };
-      
+
       // Base: 40000, precision-park: 5500, flux-capacitor: 5000 = 50500
       expect(calculateTotalPrice(config)).toBe(50500);
     });
@@ -51,7 +52,7 @@ describe('configuratorStore pure functions', () => {
         wheelType: 'sport',
         optionals: ['flux-capacitor']
       };
-      
+
       // Base: 40000, sport: 2000, flux: 5000 = 47000
       expect(calculateTotalPrice(config)).toBe(47000);
     });
@@ -72,11 +73,59 @@ describe('configuratorStore pure functions', () => {
       // Intl.NumberFormat in Node might have slightly different output depending on the version/locale
       // We check for the R$ symbol and the presence of the number
       const formatted = formatPrice(40000);
-      
+
       // Replacing non-breaking spaces for a reliable check
       const normalizedStr = formatted.replace(/\xa0/g, ' ');
-      
+
       expect(normalizedStr).toMatch(/R\$\s?40\.000,00/);
     });
+  });
+});
+
+describe('configuratorStore actions', () => {
+  it('should toggle an optional feature correctly', () => {
+    // Reset state before test
+    useConfiguratorStore.getState().resetConfiguration();
+
+    // Initial state has no optionals
+    expect(useConfiguratorStore.getState().configuration.optionals).toEqual([]);
+
+    // Toggle a feature (should add it)
+    useConfiguratorStore.getState().toggleOptional('precision-park');
+    expect(useConfiguratorStore.getState().configuration.optionals).toContain('precision-park');
+
+    // Toggle the same feature (should remove it)
+    useConfiguratorStore.getState().toggleOptional('precision-park');
+    expect(useConfiguratorStore.getState().configuration.optionals).not.toContain('precision-park');
+  });
+
+  it('should handle login logic depending on previous orders', () => {
+    useConfiguratorStore.setState({ orders: [] });
+    useConfiguratorStore.getState().logout();
+
+    // Login fails if there are no orders for the email
+    const loginResult1 = useConfiguratorStore.getState().login('test@example.com');
+    expect(loginResult1).toBe(false);
+    expect(useConfiguratorStore.getState().currentUserEmail).toBeNull();
+
+    // Add a mock order
+    useConfiguratorStore.setState({
+      orders: [
+        {
+          id: '1',
+          configuration: { exteriorColor: 'glacier-blue', interiorColor: 'carbon-black', wheelType: 'aero', optionals: [] },
+          totalPrice: 40000,
+          customer: { name: 'Test', lastname: 'User', email: 'test@example.com', phone: '', document: '', store: '' },
+          paymentMethod: 'avista',
+          status: 'APROVADO',
+          createdAt: new Date().toISOString()
+        }
+      ]
+    });
+
+    // Login succeeds now
+    const loginResult2 = useConfiguratorStore.getState().login('test@example.com');
+    expect(loginResult2).toBe(true);
+    expect(useConfiguratorStore.getState().currentUserEmail).toBe('test@example.com');
   });
 });
