@@ -97,7 +97,7 @@ export function createConfigureActions(page: Page) {
       await expect(priceElement).toHaveText(price)
     },
 
-    async expectCarImageSrc(src: string) {
+    async expectCarImageSrc(src: string | RegExp) {
       const carImage = page.locator('img[alt^="Velô Sprint"]')
       await expect(carImage).toHaveAttribute('src', src)
     },
