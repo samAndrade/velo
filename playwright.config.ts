@@ -39,7 +39,7 @@ export default defineConfig({
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    baseURL: 'https://velo-samandrade.vercel.app',
+    baseURL: 'https://velo-eleu8mgop-samir-andrade.vercel.app',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on',  //'retain-on-failure', //'on-first-retry',
