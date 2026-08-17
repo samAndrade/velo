@@ -36,7 +36,14 @@ export default defineConfig({
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter:
+    [
+      // Oprional, enables native HTML upload
+      ['html', { outputDir: './playwright-report' }],
+      // Mandatory reporter for JSON results
+      ['json', { outputFile: './playwright-report/results.json' }],
+      // ['@testdino/playwright', { token: process.env.TESTDINO_TOKEN }],
+    ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:5173',
