@@ -23,8 +23,11 @@ on:
   push:
     branches:
       - main
-  # Permite disparar manualmente pela branch para validar unit + preview +
-  # e2e sem deploy de producao (o job promote e pulado fora da main).
+  # Em PR contra a main roda unit + preview + e2e; o job promote e pulado
+  # (github.ref nao e refs/heads/main), entao producao nao e tocada.
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 env:
@@ -144,8 +147,8 @@ jobs:
   promote:
     name: Build & Deploy Production
     needs: [build-and-deploy, e2e-tests]
-    # Producao so e tocada em push/dispatch na main. Disparo manual pela
-    # branch pula este job.
+    # Producao so e tocada em push na main. Em PR / disparo manual pela
+    # branch este job e pulado.
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
