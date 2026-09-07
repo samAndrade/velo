@@ -33,3 +33,10 @@ dist-ssr
 
 .vercel
 .env*
+!.env.example
+
+# Supabase CLI - estado local do link, nao versionar
+supabase/.temp/
+
+# Segredos que nao devem entrar no repositorio
+docs/db-password.txt

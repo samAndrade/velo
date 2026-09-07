@@ -1,21 +1,35 @@
 # =====================================================================
 # Workflow: Continuous Deployment
-# Propósito: Executar exclusivamente os testes unitários do projeto
-#            a cada push na branch "main". Estrutura simples e enxuta,
-#            preparada para receber novos jobs/steps no futuro
-#            (ex.: lint, build, cobertura, deploy) sem necessidade de
-#            reestruturação.
+#
+# Fluxo a cada push na main:
+#   1. unit-tests        - testes unitarios (Vitest)
+#   2. build-and-deploy  - build com as variaveis do ambiente PREVIEW da
+#                          Vercel e deploy de preview
+#   3. e2e-tests         - Playwright contra o deploy de preview, com o
+#                          banco Supabase de preview (front + acesso direto)
+#   4. promote           - REBUILD com as variaveis do ambiente PRODUCTION
+#                          da Vercel e deploy de producao
+#
+# Por que rebuildar no passo 4: as variaveis VITE_* sao embutidas no
+# bundle em tempo de build. "vercel promote" apenas re-aponta o dominio
+# para um build que ja existe, sem recompilar - promover o build de
+# preview levaria o Supabase de preview para producao. Os dois builds
+# saem do mesmo commit; muda apenas o endpoint do Supabase.
 # =====================================================================
 
 name: Continuous Deployment
 
-# Gatilho: executa apenas em push na branch main
 on:
   push:
     branches:
       - main
+  # Em PR contra a main roda unit + preview + e2e; o job promote e pulado
+  # (github.ref nao e refs/heads/main), entao producao nao e tocada.
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
-# Variáveis globais do workflow
 env:
   NODE_VERSION: '24'
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -24,73 +38,62 @@ env:
   VERCEL_SCOPE: samir-andrade
 
 jobs:
-  # Job único responsável pelos testes unitários
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Faz o checkout do código-fonte do repositório
       - name: Checkout repository
         uses: actions/checkout@v6.1.0
 
-      # 2. Configura o Node.js na versão definida em NODE_VERSION
       - name: Setup Node.js
         uses: actions/setup-node@v6.5.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # 3. Habilita o Corepack para gerenciar o Yarn corretamente
       - name: Enable Corepack (Yarn)
         run: corepack enable
 
-      # 4. Instala as dependências do projeto usando o yarn.lock
       - name: Install dependencies
         run: yarn install --immutable
 
-      # 5. Executa os testes unitários com Vitest
       - name: Run unit tests
         run: yarn test
-  
+
   build-and-deploy:
     name: Build & Deploy Vercel Preview
     needs: [unit-tests]
     runs-on: ubuntu-latest
     outputs:
       deployment-url: ${{ steps.deploy.outputs.deployment-url }}
-    
+
     steps:
-      # 1. Faz o checkout do código-fonte do repositório
       - name: Checkout repository
         uses: actions/checkout@v6.1.0
 
-      # 2. Configura o Node.js na versão definida em NODE_VERSION
       - name: Setup Node.js
         uses: actions/setup-node@v6.5.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # 3. Habilita o Corepack para gerenciar o Yarn corretamente
       - name: Enable Corepack (Yarn)
         run: corepack enable
 
-      # 4. Instala as dependências do projeto usando o yarn.lock
       - name: Install dependencies
         run: yarn install --immutable
 
-      # 5. Obter as configurações do Vercel
-      - name: Pull Vercel Config
+      # Baixa as variaveis do ambiente PREVIEW (VITE_SUPABASE_* de preview)
+      - name: Pull Vercel Config (preview)
         run: |
           yarn vercel pull --yes \
           --environment=preview \
           --token=$VERCEL_TOKEN \
           --scope=$VERCEL_SCOPE
-      
-      # 6. Build para o Vercel
-      - name: Build Vercel
+
+      # Bundle embute o Supabase de preview
+      - name: Build Vercel (preview)
         run: yarn vercel build --token=$VERCEL_TOKEN
 
-      # 7. Deploy preview no Vercel
       - name: Deploy preview
         id: deploy
         run: |
@@ -106,36 +109,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Faz o checkout do código-fonte do repositório
       - name: Checkout repository
         uses: actions/checkout@v6.1.0
 
-      # 2. Configura o Node.js na versão definida em NODE_VERSION
       - name: Setup Node.js
         uses: actions/setup-node@v6.5.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      # 3. Habilita o Corepack para gerenciar o Yarn corretamente
       - name: Enable Corepack (Yarn)
         run: corepack enable
 
-      # 4. Instala as dependências do projeto usando o yarn.lock
       - name: Install dependencies
         run: yarn install --immutable
 
-      # 5. Instalação do Chromium
       - name: Install Playwright Browsers
         run: yarn playwright install --with-deps chromium
 
-      # 6. Execução dos Testes de Regressão
+      # BASE_URL      -> front de preview (bundle com Supabase de preview)
+      # DATABASE_URL  -> Postgres de PREVIEW; usado pelo seed/teardown que
+      #                  acessa o banco direto (playwright/support/database).
+      #                  Sem isso o teardown apagaria dados de producao.
       - name: Run E2E Regression Tests
         run: yarn playwright test
         env:
           BASE_URL: ${{ needs.build-and-deploy.outputs.deployment-url }}
+          DATABASE_URL: ${{ secrets.PREVIEW_DATABASE_URL }}
           TESTDINO_TOKEN: ${{ secrets.TD_TOKEN }}
 
-      # 7. Relatório de Testes Automatizados
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7.0.1
@@ -144,14 +145,68 @@ jobs:
           path: playwright-report
 
   promote:
-    name: Promote to Production
+    name: Build & Deploy Production
     needs: [build-and-deploy, e2e-tests]
+    # Producao so e tocada em push na main. Em PR / disparo manual pela
+    # branch este job e pulado.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Vercel promote
+      - name: Checkout repository
+        uses: actions/checkout@v6.1.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.5.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable Corepack (Yarn)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Baixa as variaveis do ambiente PRODUCTION (VITE_SUPABASE_* de producao)
+      - name: Pull Vercel Config (production)
         run: |
-          npx vercel@latest promote ${{ needs.build-and-deploy.outputs.deployment-url }} \
+          yarn vercel pull --yes \
+          --environment=production \
           --token=$VERCEL_TOKEN \
-          --scope=$VERCEL_SCOPE \
-          --yes
+          --scope=$VERCEL_SCOPE
+
+      # Rebuild: o bundle passa a embutir o Supabase de producao
+      - name: Build Vercel (production)
+        run: yarn vercel build --prod --token=$VERCEL_TOKEN
+
+      # deploy --prod cria o deployment e assume os dominios de producao
+      - name: Deploy production
+        id: deploy-prod
+        run: |
+          URL=$(yarn --silent vercel deploy --prebuilt --prod \
+          --token=$VERCEL_TOKEN \
+          --scope=$VERCEL_SCOPE)
+          echo "production-url=$URL" >> $GITHUB_OUTPUT
+
+      # Guardrail: o JS servido em producao precisa referenciar o projeto
+      # Supabase que a Vercel entregou para PRODUCTION.
+      - name: Smoke check production bundle
+        run: |
+          set -eu
+          URL="${{ steps.deploy-prod.outputs.production-url }}"
+          EXPECTED=$(grep -oE 'VITE_SUPABASE_PROJECT_ID="?[^"]+' \
+            .vercel/.env.production.local | cut -d'"' -f2)
+          echo "ref esperado no bundle: $EXPECTED"
+          HTML=$(curl -fsSL "$URL")
+          ASSET=$(printf '%s' "$HTML" | grep -oE '/assets/[^"]+\.js' | head -n1 || true)
+          if [ -z "$ASSET" ]; then
+            echo "::error::bundle JS nao encontrado em $URL"
+            exit 1
+          fi
+          JS=$(curl -fsSL "$URL$ASSET")
+          if printf '%s' "$JS" | grep -q "$EXPECTED"; then
+            echo "OK: producao usa o Supabase $EXPECTED"
+          else
+            echo "::error::producao NAO esta usando o Supabase $EXPECTED"
+            exit 1
+          fi
