@@ -23,6 +23,9 @@ on:
   push:
     branches:
       - main
+  # Permite disparar manualmente pela branch para validar unit + preview +
+  # e2e sem deploy de producao (o job promote e pulado fora da main).
+  workflow_dispatch:
 
 env:
   NODE_VERSION: '24'
@@ -141,6 +144,9 @@ jobs:
   promote:
     name: Build & Deploy Production
     needs: [build-and-deploy, e2e-tests]
+    # Producao so e tocada em push/dispatch na main. Disparo manual pela
+    # branch pula este job.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
